@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #050d1a; }
+  #root { height: 100%; }
+  ::placeholder { color: #9aa0ab; opacity: .6; }
+  select option { color: #111; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ============================================================= */
+/*  STEP 1 — paste your two Supabase values between the quotes.   */
+/*  (Project Settings → API → Project URL  and  anon public key) */
+/*  Until you do, the app just works on this one device.         */
+/* ============================================================= */
+const SUPABASE_URL      = https://ieinauaciyieadrbhjnr.supabase.co
+const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllaW5hdWFjaXlpZWFkcmJoam5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTAwMDAsImV4cCI6MjA5NjQyNjAwMH0.a-O-KQNYPiAvfxcR6ZsINpjDjo6jElI4IHQQplYwkB4;
+/* ============================================================= */
+
+const configured = SUPABASE_URL.indexOf("http") === 0 && SUPABASE_ANON_KEY.length > 20;
+const db = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const CACHE_KEY = "studio_library_v1";
+
+/* ---------- icons ---------- */
+const Svg = ({ size = 16, color, children }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
+const Plus=(p)=><Svg {...p}><path d="M12 5v14"/><path d="M5 12h14"/></Svg>;
+const Book=(p)=><Svg {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></Svg>;
+const FileText=(p)=><Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></Svg>;
+const Download=(p)=><Svg {...p}><path d="M12 3v12"/><path d="M7 11l5 4 5-4"/><path d="M5 21h14"/></Svg>;
+const Printer=(p)=><Svg {...p}><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></Svg>;
+const ChevronLeft=(p)=><Svg {...p}><path d="M15 18l-6-6 6-6"/></Svg>;
+const Trash2=(p)=><Svg {...p}><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></Svg>;
+const Eye=(p)=><Svg {...p}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></Svg>;
+const Pen=(p)=><Svg {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></Svg>;
+const ArrowUp=(p)=><Svg {...p}><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></Svg>;
+const ArrowDown=(p)=><Svg {...p}><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></Svg>;
+const X=(p)=><Svg {...p}><path d="M18 6L6 18"/><path d="M6 6l12 12"/></Svg>;
+const Cloud=(p)=><Svg {...p}><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 6.5 19z"/></Svg>;
+
+/* ---------- brand systems ---------- */
+const THEMES = {
+  loopedMind: { name:"The Looped Mind", appBg:"#050d1a", panel:"#0b1626", panelLine:"#1c2a3d", chromeInk:"#cdd7e4", chromeMute:"#6f8099", page:"#f4ecd8", ink:"#1a2230", inkMute:"#5a5040", accent:"#c9a35c", rule:"#d8cba8", display:"'Cormorant Garamond', Georgia, serif", body:"'Inter', system-ui, sans-serif", mono:"'JetBrains Mono', monospace" },
+  anchorCare: { name:"Anchor Care", appBg:"#13251a", panel:"#1b3225", panelLine:"#2c4836", chromeInk:"#dce7df", chromeMute:"#86a092", page:"#f5f1e6", ink:"#22301f", inkMute:"#55604f", accent:"#b08d57", rule:"#d7cdb8", display:"Georgia, 'Times New Roman', serif", body:"Georgia, 'Times New Roman', serif", mono:"'JetBrains Mono', monospace" },
+};
+const TRIMS = [
+  { id:"trade", label:"Trade — 6 × 9 in", w:6, h:9 },
+  { id:"digest", label:"Digest — 5.5 × 8.5 in", w:5.5, h:8.5 },
+  { id:"standard", label:"Standard — 5 × 8 in", w:5, h:8 },
+  { id:"workbook", label:"Workbook — 8.5 × 11 in", w:8.5, h:11 },
+];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const wordCount = (proj) => proj.chapters.reduce((n,c)=>n+c.blocks.reduce((m,b)=>{const t=b.type==="checklist"?(b.items||[]).join(" "):b.text||"";return m+(t.trim()?t.trim().split(/\s+/).length:0);},0),0);
+
+function Grow({ value, onChange, placeholder, style, font }) {
+  const ref = useRef(null);
+  const resize = () => { const el = ref.current; if (el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; } };
+  useEffect(resize, [value]);
+  return <textarea ref={ref} value={value} placeholder={placeholder} onChange={(e)=>onChange(e.target.value)} onInput={resize} rows={1}
+    style={{ width:"100%", resize:"none", border:"none", outline:"none", background:"transparent", fontFamily:font, lineHeight:1.55, overflow:"hidden", ...style }} />;
+}
+
+const newBlock = (type) => {
+  const base = { id: uid(), type };
+  if (type==="checklist") return { ...base, items:[""] };
+  if (type==="prompt") return { ...base, text:"", lines:4 };
+  if (type==="lines") return { ...base, text:"", lines:4 };
+  if (type==="divider") return { ...base };
+  return { ...base, text:"" };
+};
+const ADD_BUTTONS = [
+  { type:"p", label:"Text" }, { type:"h2", label:"Heading" }, { type:"quote", label:"Pull quote" },
+  { type:"prompt", label:"Prompt" }, { type:"lines", label:"Write-in lines" }, { type:"checklist", label:"Checklist" }, { type:"divider", label:"Divider" },
+];
+
+/* ================= main ================= */
+function BookStudio() {
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(!configured); // if not configured, skip auth
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authErr, setAuthErr] = useState("");
+
+  const [library, setLibrary] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [sync, setSync] = useState(configured ? "synced" : "local"); // local|syncing|synced|offline|error
+  const [view, setView] = useState("library");
+  const [currentId, setCurrentId] = useState(null);
+  const [activeChapter, setActiveChapter] = useState(0);
+  const [preview, setPreview] = useState(false);
+
+  const applyingRemote = useRef(false);
+  const lastSerialized = useRef("[]");
+  const lastSyncedAt = useRef(null);
+  const saveTimer = useRef(null);
+
+  /* ---- auth bootstrap ---- */
+  useEffect(() => {
+    if (!configured) return;
+    db.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
+    const { data: sub } = db.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const signIn = async (email, password, mode) => {
+    setAuthErr(""); setAuthBusy(true);
+    const fn = mode === "up" ? db.auth.signUp : db.auth.signInWithPassword;
+    const { error } = await fn.call(db.auth, { email: email.trim(), password });
+    if (error) setAuthErr(error.message);
+    setAuthBusy(false);
+  };
+  const signOut = async () => { await db.auth.signOut(); setLibrary([]); setLoaded(false); setView("library"); };
+
+  /* ---- load library ---- */
+  const pullRemote = useCallback(async () => {
+    if (!configured || !session) return null;
+    const { data, error } = await db.from("libraries").select("data, updated_at").eq("user_id", session.user.id).maybeSingle();
+    if (error) { setSync("offline"); return null; }
+    return data; // {data, updated_at} or null
+  }, [session]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // 1. instant local cache
+      try { const raw = localStorage.getItem(CACHE_KEY); if (raw) { applyingRemote.current = true; setLibrary(JSON.parse(raw)); } } catch {}
+      // 2. remote (if signed in)
+      if (configured && session) {
+        const remote = await pullRemote();
+        if (cancelled) return;
+        if (remote && remote.data) {
+          applyingRemote.current = true;
+          setLibrary(remote.data);
+          lastSyncedAt.current = remote.updated_at;
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify(remote.data)); } catch {}
+          setSync("synced");
+        } else {
+          // no row yet — seed it from whatever we have locally
+          const seed = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+          await db.from("libraries").upsert({ user_id: session.user.id, data: seed, updated_at: new Date().toISOString() });
+          setSync("synced");
+        }
+      }
+      if (!cancelled) setLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [session, pullRemote]);
+
+  /* ---- save (cache + debounced push) ---- */
+  useEffect(() => {
+    if (!loaded) return;
+    const serialized = JSON.stringify(library);
+    if (applyingRemote.current) { applyingRemote.current = false; lastSerialized.current = serialized; return; }
+    if (serialized === lastSerialized.current) return;
+
+    try { localStorage.setItem(CACHE_KEY, serialized); } catch {}
+    if (configured && session) setSync("syncing");
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      lastSerialized.current = serialized;
+      if (configured && session) {
+        const stamp = new Date().toISOString();
+        const { error } = await db.from("libraries").upsert({ user_id: session.user.id, data: library, updated_at: stamp });
+        if (error) setSync("error"); else { lastSyncedAt.current = stamp; setSync("synced"); }
+      }
+    }, 600);
+    return () => clearTimeout(saveTimer.current);
+  }, [library, loaded, session]);
+
+  /* ---- pull latest when returning to the tab ---- */
+  useEffect(() => {
+    if (!configured) return;
+    const onFocus = async () => {
+      if (!session) return;
+      if (JSON.stringify(library) !== lastSerialized.current) return; // local edits pending; don't clobber
+      const remote = await pullRemote();
+      if (remote && remote.data && remote.updated_at && remote.updated_at !== lastSyncedAt.current) {
+        applyingRemote.current = true;
+        setLibrary(remote.data);
+        lastSyncedAt.current = remote.updated_at;
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(remote.data)); } catch {}
+        setSync("synced");
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) onFocus(); });
+    return () => window.removeEventListener("focus", onFocus);
+  }, [session, library, pullRemote]);
+
+  const current = library.find((p)=>p.id===currentId);
+  const theme = THEMES[current?.theme || "loopedMind"];
+
+  const updateProject = useCallback((id, fn)=>setLibrary((lib)=>lib.map((p)=>p.id===id?fn({...p}):p)),[]);
+  const createProject = (type) => {
+    const p = { id:uid(), title: type==="workbook"?"Untitled Workbook":"Untitled Book", subtitle:"", author:"Kathy", type, theme:"loopedMind",
+      trim: type==="workbook"?"workbook":"trade", chapters:[{ id:uid(), title:"Chapter One", blocks:[newBlock("p")] }] };
+    setLibrary((l)=>[p,...l]); setCurrentId(p.id); setActiveChapter(0); setPreview(false); setView("editor");
+  };
+  const deleteProject = (id) => { setLibrary((l)=>l.filter((p)=>p.id!==id)); if (currentId===id) setView("library"); };
+  const openProject = (id) => { setCurrentId(id); setActiveChapter(0); setPreview(false); setView("editor"); };
+  const addChapter = () => updateProject(currentId,(p)=>{ p.chapters=[...p.chapters,{id:uid(),title:`Chapter ${p.chapters.length+1}`,blocks:[newBlock("p")]}]; return p; });
+  const updateChapter = (ci,fn) => updateProject(currentId,(p)=>{ p.chapters=p.chapters.map((c,i)=>i===ci?fn({...c}):c); return p; });
+  const deleteChapter = (ci) => updateProject(currentId,(p)=>{ if(p.chapters.length<=1)return p; p.chapters=p.chapters.filter((_,i)=>i!==ci); return p; });
+  const addBlock = (ci,type) => updateChapter(ci,(c)=>{ c.blocks=[...c.blocks,newBlock(type)]; return c; });
+  const updateBlock = (ci,bi,patch) => updateChapter(ci,(c)=>{ c.blocks=c.blocks.map((b,i)=>i===bi?{...b,...patch}:b); return c; });
+  const moveBlock = (ci,bi,dir) => updateChapter(ci,(c)=>{ const j=bi+dir; if(j<0||j>=c.blocks.length)return c; const a=[...c.blocks]; [a[bi],a[j]]=[a[j],a[bi]]; c.blocks=a; return c; });
+  const deleteBlock = (ci,bi) => updateChapter(ci,(c)=>{ c.blocks=c.blocks.filter((_,i)=>i!==bi); if(c.blocks.length===0)c.blocks=[newBlock("p")]; return c; });
+
+  const download = (name,text,type) => { const b=new Blob([text],{type}); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); };
+  const exportMarkdown = () => {
+    if(!current)return; let md=`# ${current.title}\n\n`;
+    if(current.subtitle) md+=`### ${current.subtitle}\n\n`;
+    if(current.author) md+=`*${current.author}*\n\n`;
+    current.chapters.forEach((c)=>{ md+=`\n## ${c.title}\n\n`; c.blocks.forEach((b)=>{
+      if(b.type==="h2") md+=`### ${b.text}\n\n`;
+      else if(b.type==="quote") md+=`> ${b.text}\n\n`;
+      else if(b.type==="p") md+=`${b.text}\n\n`;
+      else if(b.type==="prompt") md+=`**${b.text}**\n\n${"_".repeat(40)}\n\n`;
+      else if(b.type==="lines") md+=`${b.text?b.text+"\n\n":""}${"_".repeat(40)}\n\n`;
+      else if(b.type==="checklist") md+=(b.items||[]).map((i)=>`- [ ] ${i}`).join("\n")+"\n\n";
+      else if(b.type==="divider") md+=`---\n\n`;
+    }); });
+    download(`${current.title}.md`, md, "text/markdown");
+  };
+  const exportJSON = () => { if(!current)return; download(`${current.title}.json`, JSON.stringify(current,null,2), "application/json"); };
+
+  const trim = TRIMS.find((t)=>t.id===(current?.trim||"trade"))||TRIMS[0];
+  const syncLabel = { local:"on this device", syncing:"syncing…", synced:"synced ✓", offline:"offline — saved locally", error:"sync error — saved locally" }[sync];
+
+  /* ---- gates ---- */
+  if (!authReady) return <Splash msg="Starting up…" />;
+  if (configured && !session) return <AuthScreen onSubmit={signIn} busy={authBusy} err={authErr} />;
+  if (!loaded) return <Splash msg="Loading your studio…" />;
+
+  return (
+    <div style={{...screen, background:theme.appBg, fontFamily:theme.body}}>
+      <PrintStyle trim={trim} />
+
+      {view==="library" && (
+        <div style={{maxWidth:880, margin:"0 auto", padding:"40px 22px 80px"}}>
+          <div style={{display:"flex", alignItems:"center", gap:12}}>
+            <h1 style={{fontFamily:theme.display, color:theme.page, fontSize:40, fontWeight:600, margin:0, letterSpacing:.3}}>The Studio</h1>
+            <div style={{flex:1}}/>
+            <span style={{display:"inline-flex", alignItems:"center", gap:6, fontSize:11.5, color:theme.chromeMute, fontFamily:theme.mono}}>
+              <Cloud size={13} color={theme.accent}/> {syncLabel}
+            </span>
+            {configured && session && <button style={miniBtn(theme)} onClick={signOut}>Sign out</button>}
+          </div>
+          <p style={{color:theme.chromeMute, maxWidth:560, marginTop:8, fontSize:14.5, lineHeight:1.6}}>
+            {configured
+              ? "Write here, and it follows you — laptop, tablet, same shelf. Export a backup anytime."
+              : "Write, reorganize, and see it set in your brand. Saved in this browser. Add your Supabase keys to sync across devices."}
+          </p>
+          <div style={{display:"flex", gap:12, marginTop:22, flexWrap:"wrap"}}>
+            <button style={cta(theme)} onClick={()=>createProject("book")}><Book size={16}/> New book</button>
+            <button style={ctaGhost(theme)} onClick={()=>createProject("workbook")}><FileText size={16}/> New workbook</button>
+          </div>
+          <div style={{marginTop:34, display:"grid", gap:12}}>
+            {library.length===0 && <div style={{color:theme.chromeMute, fontSize:14, padding:"30px 0", fontStyle:"italic"}}>Nothing here yet. Start a book or workbook above.</div>}
+            {library.map((p)=>{ const th=THEMES[p.theme]; return (
+              <div key={p.id} style={card(th)} onClick={()=>openProject(p.id)}>
+                <div style={{width:6, alignSelf:"stretch", background:th.accent, borderRadius:4}}/>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{display:"flex", gap:8, alignItems:"center"}}>
+                    <span style={pill(th)}>{p.type==="workbook"?"Workbook":"Book"}</span>
+                    <span style={{fontSize:11.5, color:th.chromeMute, fontFamily:th.mono}}>{th.name}</span>
+                  </div>
+                  <div style={{fontFamily:th.display, color:th.page, fontSize:22, marginTop:6, fontWeight:600}}>{p.title}</div>
+                  <div style={{color:th.chromeMute, fontSize:12.5, marginTop:3, fontFamily:th.mono}}>{p.chapters.length} {p.chapters.length===1?"chapter":"chapters"} · {wordCount(p).toLocaleString()} words</div>
+                </div>
+                <button title="Delete" onClick={(e)=>{e.stopPropagation(); if(confirm(`Delete "${p.title}"? This can't be undone.`)) deleteProject(p.id);}} style={iconBtn(th)}><Trash2 size={15}/></button>
+              </div>
+            );})}
+          </div>
+        </div>
+      )}
+
+      {view==="editor" && current && (
+        <div style={{display:"flex", flexDirection:"column", height:"100%"}}>
+          <div style={topbar(theme)}>
+            <button style={iconBtn(theme)} onClick={()=>setView("library")}><ChevronLeft size={16}/> <span style={{fontSize:13}}>Library</span></button>
+            <div style={{flex:1}}/>
+            <span style={{fontSize:11.5, color:theme.chromeMute, fontFamily:theme.mono, marginRight:4}}>{sync==="syncing"?"syncing…":sync==="synced"?"synced ✓":`${wordCount(current).toLocaleString()} words`}</span>
+            <button style={iconBtn(theme)} onClick={()=>setPreview((v)=>!v)}>{preview?<Pen size={15}/>:<Eye size={15}/>}<span style={{fontSize:13}}>{preview?"Edit":"Preview"}</span></button>
+            <button style={iconBtn(theme)} onClick={()=>window.print()}><Printer size={15}/> <span style={{fontSize:13}}>Print / PDF</span></button>
+          </div>
+          <div style={settingsStrip(theme)}>
+            <Field label="Theme" theme={theme}>
+              <select value={current.theme} onChange={(e)=>updateProject(current.id,(p)=>((p.theme=e.target.value),p))} style={select(theme)}>
+                <option value="loopedMind">The Looped Mind</option><option value="anchorCare">Anchor Care</option>
+              </select>
+            </Field>
+            <Field label="Trim size" theme={theme}>
+              <select value={current.trim} onChange={(e)=>updateProject(current.id,(p)=>((p.trim=e.target.value),p))} style={select(theme)}>
+                {TRIMS.map((t)=><option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </Field>
+            <div style={{flex:1}}/>
+            <button style={miniBtn(theme)} onClick={exportMarkdown}><Download size={13}/> .md</button>
+            <button style={miniBtn(theme)} onClick={exportJSON}><Download size={13}/> .json</button>
+          </div>
+          <div style={{display:"flex", flex:1, minHeight:0}}>
+            {!preview && (
+              <div style={rail(theme)}>
+                {current.chapters.map((c,i)=>(
+                  <button key={c.id} onClick={()=>setActiveChapter(i)} style={railItem(theme,i===activeChapter)}>
+                    <span style={{fontFamily:theme.mono, fontSize:10.5, color:theme.chromeMute}}>{String(i+1).padStart(2,"0")}</span>
+                    <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{c.title||"Untitled"}</span>
+                  </button>
+                ))}
+                <button onClick={addChapter} style={railAdd(theme)}><Plus size={14}/> Add chapter</button>
+              </div>
+            )}
+            <div style={{flex:1, overflowY:"auto", display:"flex", justifyContent:"center", padding:"26px 18px 90px"}}>
+              {preview
+                ? <PreviewBook current={current} theme={theme} trim={trim}/>
+                : <ChapterEditor key={current.chapters[activeChapter]?.id} current={current} ci={activeChapter} theme={theme} trim={trim}
+                    updateProject={updateProject} updateChapter={updateChapter} deleteChapter={deleteChapter}
+                    addBlock={addBlock} updateBlock={updateBlock} moveBlock={moveBlock} deleteBlock={deleteBlock}/>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {current && <div className="print-area" style={{display:"none"}}><PrintBook current={current} theme={theme}/></div>}
+    </div>
+  );
+}
+
+/* ---------- splash + auth ---------- */
+function Splash({ msg }) {
+  return <div style={{...screen, background:"#050d1a", color:"#6f8099", fontFamily:"system-ui", display:"flex", alignItems:"center", justifyContent:"center"}}>{msg}</div>;
+}
+function AuthScreen({ onSubmit, busy, err }) {
+  const t = THEMES.loopedMind;
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  return (
+    <div style={{...screen, background:t.appBg, display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+      <div style={{width:340, maxWidth:"100%"}}>
+        <div style={{fontFamily:t.mono, fontSize:11, letterSpacing:3, color:t.accent}}>THE LOOPED MIND</div>
+        <h1 style={{fontFamily:t.display, color:t.page, fontSize:34, fontWeight:600, margin:"8px 0 4px"}}>The Studio</h1>
+        <p style={{color:t.chromeMute, fontSize:13.5, marginBottom:22}}>Sign in to reach your books from any device.</p>
+        <input value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="Email" type="email"
+          style={{width:"100%", background:t.panel, color:t.page, border:`1px solid ${t.panelLine}`, borderRadius:8, padding:"11px 13px", marginBottom:10, fontFamily:t.body, fontSize:14}}/>
+        <input value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Password" type="password"
+          style={{width:"100%", background:t.panel, color:t.page, border:`1px solid ${t.panelLine}`, borderRadius:8, padding:"11px 13px", marginBottom:14, fontFamily:t.body, fontSize:14}}/>
+        {err && <div style={{color:"#e2a06a", fontSize:12.5, marginBottom:12}}>{err}</div>}
+        <div style={{display:"flex", gap:10}}>
+          <button disabled={busy} style={{...cta(t), flex:1, justifyContent:"center", opacity:busy?.6:1}} onClick={()=>onSubmit(email,pw,"in")}>Sign in</button>
+          <button disabled={busy} style={{...ctaGhost(t), flex:1, justifyContent:"center", opacity:busy?.6:1}} onClick={()=>onSubmit(email,pw,"up")}>Create account</button>
+        </div>
+        <p style={{color:t.chromeMute, fontSize:11.5, marginTop:16, lineHeight:1.5}}>First time? Tap “Create account.” Use the same email &amp; password on your other device to see the same shelf.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- editor + preview (unchanged) ---------- */
+function ChapterEditor({ current, ci, theme, trim, updateProject, updateChapter, deleteChapter, addBlock, updateBlock, moveBlock, deleteBlock }) {
+  const chapter = current.chapters[ci]; if(!chapter) return null;
+  const pageW = Math.min(trim.w*78, 660);
+  return (
+    <div style={{width:"100%", maxWidth:pageW}}>
+      {ci===0 && (
+        <div style={{marginBottom:18}}>
+          <input value={current.title} onChange={(e)=>updateProject(current.id,(p)=>((p.title=e.target.value),p))} placeholder="Book title"
+            style={{...bare, fontFamily:theme.display, fontSize:30, fontWeight:600, color:theme.page, width:"100%"}}/>
+          <input value={current.subtitle} onChange={(e)=>updateProject(current.id,(p)=>((p.subtitle=e.target.value),p))} placeholder="Subtitle (optional)"
+            style={{...bare, fontFamily:theme.body, fontSize:15, color:theme.chromeMute, width:"100%", marginTop:4}}/>
+        </div>
+      )}
+      <div style={pagePanel(theme)}>
+        <div style={{display:"flex", alignItems:"center", gap:8}}>
+          <span style={{fontFamily:theme.mono, fontSize:11, color:theme.accent, letterSpacing:1}}>CHAPTER {ci+1}</span>
+          <div style={{flex:1}}/>
+          {current.chapters.length>1 && <button onClick={()=>deleteChapter(ci)} style={{...bare, color:theme.inkMute, cursor:"pointer", fontSize:12, display:"flex", gap:4, alignItems:"center"}}><Trash2 size={13}/> chapter</button>}
+        </div>
+        <input value={chapter.title} onChange={(e)=>updateChapter(ci,(c)=>((c.title=e.target.value),c))} placeholder="Chapter title"
+          style={{...bare, fontFamily:theme.display, fontSize:26, fontWeight:600, color:theme.ink, width:"100%", marginTop:6}}/>
+        <div style={{height:2, width:60, background:theme.accent, margin:"12px 0 22px"}}/>
+        {chapter.blocks.map((b,bi)=>(
+          <BlockEditor key={b.id} block={b} ci={ci} bi={bi} theme={theme} updateBlock={updateBlock} moveBlock={moveBlock} deleteBlock={deleteBlock} last={bi===chapter.blocks.length-1}/>
+        ))}
+      </div>
+      <div style={{display:"flex", gap:8, flexWrap:"wrap", marginTop:14}}>
+        {ADD_BUTTONS.map((b)=><button key={b.type} onClick={()=>addBlock(ci,b.type)} style={addChip(theme)}><Plus size={12}/> {b.label}</button>)}
+      </div>
+    </div>
+  );
+}
+
+function BlockEditor({ block, ci, bi, theme, updateBlock, moveBlock, deleteBlock, last }) {
+  const controls = (
+    <div style={{display:"flex", flexDirection:"column", gap:2, opacity:.55}}>
+      <button style={tinyBtn} onClick={()=>moveBlock(ci,bi,-1)}><ArrowUp size={12} color={theme.inkMute}/></button>
+      <button style={tinyBtn} onClick={()=>moveBlock(ci,bi,1)}><ArrowDown size={12} color={theme.inkMute}/></button>
+      <button style={tinyBtn} onClick={()=>deleteBlock(ci,bi)}><X size={12} color={theme.inkMute}/></button>
+    </div>
+  );
+  let inner;
+  if (block.type==="h2") inner=<Grow value={block.text} onChange={(t)=>updateBlock(ci,bi,{text:t})} placeholder="Section heading" font={theme.display} style={{fontSize:21, fontWeight:600, color:theme.ink}}/>;
+  else if (block.type==="quote") inner=<Grow value={block.text} onChange={(t)=>updateBlock(ci,bi,{text:t})} placeholder="A line worth pulling out…" font={theme.display} style={{fontSize:19, fontStyle:"italic", color:theme.accent, paddingLeft:14, borderLeft:`3px solid ${theme.accent}`}}/>;
+  else if (block.type==="p") inner=<Grow value={block.text} onChange={(t)=>updateBlock(ci,bi,{text:t})} placeholder="Write…" font={theme.body} style={{fontSize:15.5, color:theme.ink}}/>;
+  else if (block.type==="divider") inner=<div style={{textAlign:"center", color:theme.accent, fontSize:18, letterSpacing:6}}>◆</div>;
+  else if (block.type==="prompt"||block.type==="lines") inner=(
+    <div>
+      <Grow value={block.text} onChange={(t)=>updateBlock(ci,bi,{text:t})} placeholder={block.type==="prompt"?"Prompt or question…":"Label (optional)…"} font={theme.body}
+        style={{fontSize:15, fontWeight:block.type==="prompt"?600:400, color:block.type==="prompt"?theme.ink:theme.inkMute}}/>
+      {Array.from({length:block.lines||4}).map((_,i)=><div key={i} style={{borderBottom:`1px solid ${theme.rule}`, height:26}}/>)}
+      <div style={{display:"flex", gap:6, marginTop:6}}>
+        <button style={stepper(theme)} onClick={()=>updateBlock(ci,bi,{lines:Math.max(1,(block.lines||4)-1)})}>– line</button>
+        <button style={stepper(theme)} onClick={()=>updateBlock(ci,bi,{lines:(block.lines||4)+1})}>+ line</button>
+      </div>
+    </div>
+  );
+  else if (block.type==="checklist") inner=(
+    <div>
+      {(block.items||[]).map((it,ii)=>(
+        <div key={ii} style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+          <span style={{width:14, height:14, border:`1.5px solid ${theme.accent}`, borderRadius:3, flexShrink:0}}/>
+          <input value={it} placeholder="Checklist item…" onChange={(e)=>{const items=[...block.items]; items[ii]=e.target.value; updateBlock(ci,bi,{items});}}
+            style={{...bare, fontFamily:theme.body, fontSize:14.5, color:theme.ink, flex:1}}/>
+          <button style={tinyBtn} onClick={()=>{const items=block.items.filter((_,x)=>x!==ii); updateBlock(ci,bi,{items:items.length?items:[""]});}}><X size={11} color={theme.inkMute}/></button>
+        </div>
+      ))}
+      <button style={stepper(theme)} onClick={()=>updateBlock(ci,bi,{items:[...(block.items||[]),""]})}>+ item</button>
+    </div>
+  );
+  return <div style={{display:"flex", gap:8, marginBottom:last?0:16, alignItems:"flex-start"}}><div style={{flex:1, minWidth:0}}>{inner}</div>{controls}</div>;
+}
+
+function PreviewBook({ current, theme, trim }) {
+  const pageW = Math.min(trim.w*82, 700);
+  return (
+    <div style={{width:"100%", maxWidth:pageW}}>
+      <div style={{...paper(theme), aspectRatio:`${trim.w} / ${trim.h}`, marginBottom:18, display:"flex", flexDirection:"column", justifyContent:"center", textAlign:"center"}}>
+        <div style={{fontFamily:theme.mono, fontSize:11, letterSpacing:3, color:theme.accent}}>{theme.name.toUpperCase()}</div>
+        <div style={{fontFamily:theme.display, fontSize:38, fontWeight:600, color:theme.ink, margin:"18px 0 0", lineHeight:1.1}}>{current.title}</div>
+        {current.subtitle && <div style={{fontFamily:theme.body, fontSize:15, color:theme.inkMute, marginTop:12}}>{current.subtitle}</div>}
+        <div style={{height:2, width:50, background:theme.accent, margin:"26px auto 0"}}/>
+        {current.author && <div style={{fontFamily:theme.body, fontSize:13, color:theme.inkMute, marginTop:22, letterSpacing:1}}>{current.author}</div>}
+      </div>
+      {current.chapters.map((c,i)=><div key={c.id} style={{...paper(theme), marginBottom:18}}><FormattedChapter chapter={c} idx={i} theme={theme}/></div>)}
+    </div>
+  );
+}
+function FormattedChapter({ chapter, idx, theme }) {
+  return (
+    <div>
+      <div style={{fontFamily:theme.mono, fontSize:11, letterSpacing:2, color:theme.accent}}>CHAPTER {idx+1}</div>
+      <h2 style={{fontFamily:theme.display, fontSize:30, fontWeight:600, color:theme.ink, margin:"8px 0 0", lineHeight:1.15}}>{chapter.title}</h2>
+      <div style={{height:2, width:54, background:theme.accent, margin:"16px 0 26px"}}/>
+      {chapter.blocks.map((b)=><FormattedBlock key={b.id} b={b} theme={theme}/>)}
+    </div>
+  );
+}
+function FormattedBlock({ b, theme }) {
+  if (b.type==="h2"&&b.text) return <h3 style={{fontFamily:theme.display, fontSize:22, fontWeight:600, color:theme.ink, margin:"22px 0 10px"}}>{b.text}</h3>;
+  if (b.type==="quote"&&b.text) return <p style={{fontFamily:theme.display, fontSize:21, fontStyle:"italic", color:theme.accent, borderLeft:`3px solid ${theme.accent}`, paddingLeft:18, margin:"20px 0"}}>{b.text}</p>;
+  if (b.type==="p") return <p style={{fontFamily:theme.body, fontSize:15.5, lineHeight:1.7, color:theme.ink, margin:"0 0 15px"}}>{b.text}</p>;
+  if (b.type==="divider") return <div style={{textAlign:"center", color:theme.accent, fontSize:18, letterSpacing:6, margin:"20px 0"}}>◆</div>;
+  if (b.type==="prompt"||b.type==="lines") return (
+    <div style={{margin:"16px 0"}}>
+      {b.text && <p style={{fontFamily:theme.body, fontSize:15, fontWeight:b.type==="prompt"?600:400, color:b.type==="prompt"?theme.ink:theme.inkMute, margin:"0 0 10px"}}>{b.text}</p>}
+      {Array.from({length:b.lines||4}).map((_,i)=><div key={i} style={{borderBottom:`1px solid ${theme.rule}`, height:30}}/>)}
+    </div>
+  );
+  if (b.type==="checklist") return (
+    <div style={{margin:"14px 0"}}>
+      {(b.items||[]).filter(Boolean).map((it,i)=>(
+        <div key={i} style={{display:"flex", gap:10, alignItems:"center", margin:"0 0 8px"}}>
+          <span style={{width:15, height:15, border:`1.5px solid ${theme.accent}`, borderRadius:3}}/>
+          <span style={{fontFamily:theme.body, fontSize:15, color:theme.ink}}>{it}</span>
+        </div>
+      ))}
+    </div>
+  );
+  return null;
+}
+function PrintBook({ current, theme }) {
+  return (
+    <div style={{color:theme.ink, fontFamily:theme.body}}>
+      <div style={{textAlign:"center", paddingTop:"30%", pageBreakAfter:"always"}}>
+        <div style={{fontFamily:theme.mono, fontSize:11, letterSpacing:3}}>{theme.name.toUpperCase()}</div>
+        <h1 style={{fontFamily:theme.display, fontSize:34, margin:"20px 0 0"}}>{current.title}</h1>
+        {current.subtitle && <p style={{fontSize:14}}>{current.subtitle}</p>}
+        {current.author && <p style={{marginTop:30, fontSize:12}}>{current.author}</p>}
+      </div>
+      {current.chapters.map((c,i)=><div key={c.id} style={{pageBreakBefore:"always"}}><FormattedChapter chapter={c} idx={i} theme={theme}/></div>)}
+    </div>
+  );
+}
+
+function Field({ label, children, theme }) {
+  return <label style={{display:"flex", flexDirection:"column", gap:3}}>
+    <span style={{fontSize:10, letterSpacing:1, color:theme.chromeMute, fontFamily:theme.mono, textTransform:"uppercase"}}>{label}</span>{children}
+  </label>;
+}
+function PrintStyle({ trim }) {
+  return <style>{`@media print { @page { size:${trim.w}in ${trim.h}in; margin:0.75in 0.7in; } body *{visibility:hidden!important;} .print-area,.print-area *{visibility:visible!important;} .print-area{display:block!important;position:absolute;left:0;top:0;width:100%;background:#fff;} }`}</style>;
+}
+
+const screen = { width:"100%", height:"100vh", overflow:"auto", color:"#fff" };
+const bare = { border:"none", outline:"none", background:"transparent" };
+const tinyBtn = { ...bare, cursor:"pointer", padding:1, lineHeight:0 };
+const cta = (t)=>({display:"inline-flex", alignItems:"center", gap:8, background:t.accent, color:t.appBg, border:"none", borderRadius:9, padding:"11px 18px", fontWeight:600, fontSize:14, cursor:"pointer", fontFamily:t.body});
+const ctaGhost = (t)=>({...cta(t), background:"transparent", color:t.page, border:`1px solid ${t.panelLine}`});
+const card = (t)=>({display:"flex", gap:14, alignItems:"center", background:t.panel, border:`1px solid ${t.panelLine}`, borderRadius:12, padding:16, cursor:"pointer"});
+const pill = (t)=>({fontSize:10.5, fontFamily:t.mono, letterSpacing:1, color:t.appBg, background:t.accent, padding:"2px 7px", borderRadius:5, textTransform:"uppercase"});
+const iconBtn = (t)=>({display:"inline-flex", alignItems:"center", gap:5, background:"transparent", color:t.chromeInk, border:`1px solid ${t.panelLine}`, borderRadius:8, padding:"7px 11px", cursor:"pointer", fontFamily:t.body});
+const topbar = (t)=>({display:"flex", alignItems:"center", gap:8, padding:"12px 16px", borderBottom:`1px solid ${t.panelLine}`, background:t.panel, position:"sticky", top:0, zIndex:5});
+const settingsStrip = (t)=>({display:"flex", alignItems:"flex-end", gap:16, padding:"12px 16px", borderBottom:`1px solid ${t.panelLine}`, background:t.appBg, flexWrap:"wrap"});
+const select = (t)=>({background:t.panel, color:t.chromeInk, border:`1px solid ${t.panelLine}`, borderRadius:7, padding:"6px 9px", fontSize:13, fontFamily:t.body});
+const miniBtn = (t)=>({display:"inline-flex", alignItems:"center", gap:5, background:"transparent", color:t.chromeMute, border:`1px solid ${t.panelLine}`, borderRadius:7, padding:"7px 10px", cursor:"pointer", fontSize:12.5, fontFamily:t.mono});
+const rail = (t)=>({width:210, flexShrink:0, borderRight:`1px solid ${t.panelLine}`, padding:12, overflowY:"auto", display:"flex", flexDirection:"column", gap:4, background:t.appBg});
+const railItem = (t,a)=>({display:"flex", gap:8, alignItems:"center", textAlign:"left", background:a?t.panel:"transparent", color:a?t.page:t.chromeMute, border:a?`1px solid ${t.panelLine}`:"1px solid transparent", borderRadius:8, padding:"9px 10px", cursor:"pointer", fontSize:13.5, fontFamily:t.body});
+const railAdd = (t)=>({display:"flex", gap:6, alignItems:"center", justifyContent:"center", color:t.accent, background:"transparent", border:`1px dashed ${t.panelLine}`, borderRadius:8, padding:"9px", cursor:"pointer", fontSize:12.5, marginTop:6, fontFamily:t.body});
+const pagePanel = (t)=>({background:t.page, borderRadius:10, padding:"30px 34px", boxShadow:"0 20px 50px rgba(0,0,0,.35)"});
+const paper = (t)=>({background:t.page, borderRadius:8, padding:"44px 48px", boxShadow:"0 18px 44px rgba(0,0,0,.3)"});
+const addChip = (t)=>({display:"inline-flex", alignItems:"center", gap:5, background:t.panel, color:t.chromeInk, border:`1px solid ${t.panelLine}`, borderRadius:20, padding:"7px 13px", fontSize:12.5, cursor:"pointer", fontFamily:t.body});
+const stepper = (t)=>({background:"transparent", color:t.inkMute, border:`1px solid ${t.rule}`, borderRadius:6, padding:"3px 9px", fontSize:11.5, cursor:"pointer", fontFamily:t.body});
+
+ReactDOM.createRoot(document.getElementById("root")).render(<BookStudio/>);
+</script>
+</body>
+</html>
